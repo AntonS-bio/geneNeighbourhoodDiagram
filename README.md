@@ -10,5 +10,6 @@ MyGeneDiagram.jpg - name of output file (optional)<br />
  
 
 Two parameters hardcoded in script for the moment (both at the top of generateGeneNeighbourhoodDiagram.py):<br />
+<br />
 GffsToExclude - self explanatory. Values is list can be with and without ".gff" at the end.<br />
 minComboFrequency - any gene profile which occurs if fewer cases than this number will not be reported. By default 2. This is useful to remove occasional misassemblies if dataset is large.<br />
