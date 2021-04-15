@@ -1,4 +1,4 @@
-Requires: python and R
+Requires: python and R<br />
 R needs to have gggenes package installed.<br />
 
 To run: python generateGeneNeighbourhoodDiagram.py AHM87981.1 3 ~/myGffDir/ MyGeneDiagram.jpg<br />
