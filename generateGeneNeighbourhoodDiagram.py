@@ -9,13 +9,19 @@ import subprocess
 import sys
 
 wd=getcwd()
-#this is the folder with GFFs
-gffDir="/mnt/storage5/anton/Portugal_fastas/prokka_genus_exFasta/"
 #the Gffs with these names will be excluded
 GffsToExclude=["3042","5145","Kp_4240","Kp4151", "3766", "5170","Kp4189","Kp4173","3763","Kp4179","Kp931"]
 targetGeneID=sys.argv[1]
+neighbourhoodSize=int(sys.argv[2])
+gffDir=sys.argv[3]
+minComboFrequency=2 #only gene profiles which occur at least this many times will be reported.
+
+if len(sys.argv)==5:
+    diagramFileName=sys.argv[4]
+else:
+    diagramFileName="GeneNeighbourhoodDiagram.jpg" 
 #Maximum number of genes to take on each side of target gene
-neighbourhoodSize=4
+
 
 files = [f for f in listdir(gffDir) if isfile(join(gffDir, f)) and splitext(f)[1]==".gff"]
 
@@ -40,7 +46,7 @@ def getGeneLabel(gffLine):
 
 debugCounter=0
 for gff in files:
-    if gff.replace(".gff","") not in GffsToExclude:
+    if gff.replace(".gff","") not in GffsToExclude and gff not in GffsToExclude:
         breakCounter=0
         foundGene=False
         lines=[]
@@ -140,11 +146,11 @@ for name in selectedLines.keys():
             else:
                 gggenesInput.write(name+"\t"+getGeneLabel(line)+"\t"+str(pointZero-int(values[4]))+"\t"+str(pointZero-int(values[3]))+"\n")
 gggenesInput.close()
-
-subprocess.call ("Rscript "+wd+"/genesDiagram.R "+wd, shell=True)
+print(wd)
+subprocess.call ("Rscript "+wd+"/genesDiagram.R "+wd+" "+diagramFileName+" "+str(minComboFrequency), shell=True)
 
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
-img = mpimg.imread(wd+"/GeneNeighbourhoodDiagram.jpg")
+img = mpimg.imread(wd+"/"+diagramFileName)
 imgplot = plt.imshow(img)
 plt.show()

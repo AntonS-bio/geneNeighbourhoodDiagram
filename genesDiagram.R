@@ -5,8 +5,10 @@ library(dbplyr)
 args = commandArgs(trailingOnly=TRUE)
 if (length(args)==0) {
   stop("No working directory supplied, check R call in python", call.=FALSE)
-} else if (length(args)==1) {
+} else if (length(args)==3) {
   wd=args[1]
+  diagramFile=args[2]
+  minComboFrequency=args[3]
 }
 
 genes=read.delim(paste0(wd,"/gggenesInput.tsv"),sep="\t")
@@ -39,7 +41,7 @@ for (i in seq(1,length(uniqueCombos))){
 
 figureData=data.frame(Sample=character(0), geneID=character(0), Start=numeric(0), End=numeric(0))
 for (i in seq(1,length(uniqueCombos))){
-  if (comboCounts[i]>0){
+  if (comboCounts[i]>=minComboFrequency){
     newrows=uniq[uniqueCombos[[i]],c("geneID", "Start","End", "merged")]
     #newrows$Sample=paste0("Combo",i,"(",comboCounts[i],")")
     newrows$Sample=paste0("Profile ",i,"(",comboCounts[i],")")
@@ -62,6 +64,6 @@ p=ggplot(figureData, aes(xmin = Start, xmax = End, y = Sample, fill=geneID, labe
   labs(y="Genes profile", x = "bps")
 
 
-ggsave(paste0(wd,'/GeneNeighbourhoodDiagram.jpg'),plot=p, width=40, units=c("cm"), limitsize=FALSE)
+ggsave(paste0(wd,'/',diagramFile),plot=p, width=40, units=c("cm"), limitsize=FALSE)
 
 print("Done with R")
