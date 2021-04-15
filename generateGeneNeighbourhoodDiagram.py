@@ -14,7 +14,7 @@ GffsToExclude=["3042","5145","Kp_4240","Kp4151", "3766", "5170","Kp4189","Kp4173
 targetGeneID=sys.argv[1]
 neighbourhoodSize=int(sys.argv[2])
 gffDir=sys.argv[3]
-minComboFrequency=2 #only gene profiles which occur at least this many times will be reported.
+minComboFrequency=1 #only gene profiles which occur at least this many times will be reported.
 
 if len(sys.argv)==5:
     diagramFileName=sys.argv[4]
@@ -47,13 +47,14 @@ def getGeneLabel(gffLine):
 debugCounter=0
 for gff in files:
     if gff.replace(".gff","") not in GffsToExclude and gff not in GffsToExclude:
-        breakCounter=0
+        breakCounter=0 #this is required because the number of lines after the target gene is unknown
         foundGene=False
         lines=[]
+        AllLines=[]
         with open(gffDir+gff) as file:
             for line in file:
                 if line[0]!="#": #skip the header
-                    lines.append(line.strip())
+                    AllLines.append(line.strip())
                     if targetGeneID in line: 
                         foundGene=True
                         targetGeneData=line.strip().split("\t")                    
@@ -62,11 +63,14 @@ for gff in files:
                     if foundGene:
                         breakCounter=breakCounter+1
                         if breakCounter==neighbourhoodSize:
-                            lines=lines[max(0,len(lines)-neighbourhoodSize*2):len(lines)]
-                            break #don't parse the rest of the file
+                            lines=lines+AllLines[max(0,len(AllLines)-neighbourhoodSize*2):len(AllLines)]
+                            #break #the rest of the file still needs to be parsed because it may have
+                            #multiple cases of specific gene
+                            foundGene=False
+                            breakCounter=0
 
         #add file data to dictionary
-        if foundGene:
+        if foundGene or len(lines)>0:
             selectedLines[gff.replace(".gff","")]=[]
             for line in lines:
                 #check that chromosome is the same as the target gene
@@ -77,12 +81,7 @@ for gff in files:
                     else:
                         selectedLines[gff.replace(".gff","")].append(line)
             debugCounter=debugCounter+1
-            if debugCounter>20:
-                pass
-                #break
-
-
-
+ 
 df = pd.DataFrame(index=[list(selectedLines.keys())], columns=[("gene"+str(f)) for f in range(-neighbourhoodSize,neighbourhoodSize+1)])
 for name in selectedLines.keys():
     #name=file name, value=gff lines

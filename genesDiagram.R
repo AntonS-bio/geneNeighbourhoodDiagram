@@ -58,6 +58,7 @@ for (i in seq(1,length(uniqueGenes$geneID))){
   figureData$ExtraLabel[index]=i
 }
 
+
 p=ggplot(figureData, aes(xmin = Start, xmax = End, y = Sample, fill=geneID, label = as.roman(ExtraLabel))) +
   geom_gene_arrow() + theme(legend.position="bottom", legend.text=element_text(size=8))+
   geom_gene_label()+
