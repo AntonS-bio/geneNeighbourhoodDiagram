@@ -3,27 +3,39 @@
 #run in Renv
 
 from os import listdir, getcwd
-from os.path import isfile, join, splitext
+from os.path import isfile, join, splitext, exists
 import pandas as pd
 import subprocess
 import sys
+import pathlib
+import argparse
+
+
+
+parser = argparse.ArgumentParser(description='Take nucleotide/amino acid sequence, search files for homologues, build a phylo tree')
+parser.add_argument('-t','--target_gene', help="A string to look for in attributes(aka 9th aka last) column of GFF file. Ideally gene ID", required=True)
+parser.add_argument('-n', '--number_of_genes', default=3, help="Number of genes (on each side of target) to use, default=3", required=False)
+parser.add_argument('-d', '--gff_dir', help="The directory with GFF files to search", required=True)
+parser.add_argument('-f', '--min_freq', default=3, help="Minimum number of times the gene combination needs to occur to be shown. Prevents excessively large figure. Default=3", required=False)
+parser.add_argument('-o', '--output', default="GeneNeighbourhoodDiagram.jpg", help="Output file name. Default=GeneNeighbourhoodDiagram.jpg in current directory", required=False)
+
+args = parser.parse_args()
 
 wd=getcwd()
-#the Gffs with these names will be excluded
-GffsToExclude=["3042","5145","Kp_4240","Kp4151", "3766", "5170","Kp4189","Kp4173","3763","Kp4179","Kp931"]
-targetGeneID=sys.argv[1]
-neighbourhoodSize=int(sys.argv[2])
-gffDir=sys.argv[3]
-minComboFrequency=1 #only gene profiles which occur at least this many times will be reported.
+GffsToExclude=[]
+targetGeneID=args.target_gene
+neighbourhoodSize=args.number_of_genes
+gffDir=args.gff_dir
+minComboFrequency=args.min_freq
+diagramFileName=args.output
 
-if len(sys.argv)==5:
-    diagramFileName=sys.argv[4]
-else:
-    diagramFileName="GeneNeighbourhoodDiagram.jpg" 
-#Maximum number of genes to take on each side of target gene
-
-
+if not exists(gffDir):
+    print(f'Could not find directory {gffDir}')
+    sys.exit()
 files = [f for f in listdir(gffDir) if isfile(join(gffDir, f)) and splitext(f)[1]==".gff"]
+if len(files)==0:
+    print(f'Could not find files ending in .gff in directory {gffDir}')
+    sys.exit()
 
 selectedLines={}
 
@@ -42,7 +54,15 @@ def getGeneLabel(gffLine):
         elif "product=" in geneDesc[i]:
             label=geneDesc[i].replace("product=","")
             break
+        elif "note=" in geneDesc[i]:
+            label=geneDesc[i].replace("note=","")
+            #break
     return label
+
+#not strictly necessary because the logic will assign them, but lint odesn't like unbound variables
+targetGenChr=-1
+targetGeneDir="-"
+#not strictly necessary because the logic will assign them, but lint odesn't like unbound variables
 
 debugCounter=0
 for gff in files:
@@ -54,8 +74,11 @@ for gff in files:
         with open(gffDir+gff) as file:
             for line in file:
                 if line[0]!="#": #skip the header
+                    if line.split("\t")[2].strip()!="CDS":
+                        continue
                     AllLines.append(line.strip())
-                    if targetGeneID in line: 
+                    if targetGeneID in line:
+                        #duplicate diagram markers
                         foundGene=True
                         targetGeneData=line.strip().split("\t")                    
                         targetGenChr=targetGeneData[0]
@@ -83,6 +106,9 @@ for gff in files:
             debugCounter=debugCounter+1
  
 df = pd.DataFrame(index=[list(selectedLines.keys())], columns=[("gene"+str(f)) for f in range(-neighbourhoodSize,neighbourhoodSize+1)])
+if df.shape[0]==0:
+    print("Not found any gff lines with target sequence")
+    sys.exit()
 for name in selectedLines.keys():
     #name=file name, value=gff lines
     #find position of the target gene in the list of gff lines
@@ -106,6 +132,13 @@ df.to_csv(wd+"/output.tsv", sep="\t")
 #start of KPC is the coordinate 0
 gggenesInput=open(wd+"/gggenesInput.tsv","w")
 gggenesInput.write("Sample\tgeneID\tStart\tEnd\n")
+
+#not strictly necessary because the logic will assign them, but lint odesn't like unbound variables
+flip=True
+pointZero=-1
+#not strictly necessary because the logic will assign them, but lint odesn't like unbound variables
+targetGenChr=-1
+
 for name in selectedLines.keys():
     #name=file name, value=gff lines
     #find position of the target gene in the list of gff lines
@@ -145,8 +178,8 @@ for name in selectedLines.keys():
             else:
                 gggenesInput.write(name+"\t"+getGeneLabel(line)+"\t"+str(pointZero-int(values[4]))+"\t"+str(pointZero-int(values[3]))+"\n")
 gggenesInput.close()
-print(wd)
-subprocess.call ("Rscript "+wd+"/genesDiagram.R "+wd+" "+diagramFileName+" "+str(minComboFrequency), shell=True)
+
+subprocess.call (f'Rscript {pathlib.Path(__file__).parent.resolve()}/genesDiagram.R {wd} {diagramFileName} {str(minComboFrequency)}', shell=True)
 
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
