@@ -24,7 +24,7 @@ args = parser.parse_args()
 wd=getcwd()
 GffsToExclude=[]
 targetGeneID=args.target_gene
-neighbourhoodSize=args.number_of_genes
+neighbourhoodSize=int(args.number_of_genes)
 gffDir=args.gff_dir
 minComboFrequency=args.min_freq
 diagramFileName=args.output
@@ -59,12 +59,11 @@ def getGeneLabel(gffLine):
             #break
     return label
 
-#not strictly necessary because the logic will assign them, but lint odesn't like unbound variables
+#not strictly necessary because the logic will assign them, but lint doesn't like unbound variables
 targetGenChr=-1
 targetGeneDir="-"
-#not strictly necessary because the logic will assign them, but lint odesn't like unbound variables
+#not strictly necessary because the logic will assign them, but lint doesn't like unbound variables
 
-debugCounter=0
 for gff in files:
     if gff.replace(".gff","") not in GffsToExclude and gff not in GffsToExclude:
         breakCounter=0 #this is required because the number of lines after the target gene is unknown
@@ -83,14 +82,16 @@ for gff in files:
                         targetGeneData=line.strip().split("\t")                    
                         targetGenChr=targetGeneData[0]
                         targetGeneDir=targetGeneData[6] #to normalise so that all - target genes are reversed in direction                    
-                    if foundGene:
+                    if foundGene: #continue until either the end of the contig is reached, or neighbourhood size is attained
                         breakCounter=breakCounter+1
-                        if breakCounter==neighbourhoodSize:
-                            lines=lines+AllLines[max(0,len(AllLines)-neighbourhoodSize*2):len(AllLines)]
-                            #break #the rest of the file still needs to be parsed because it may have
-                            #multiple cases of specific gene
-                            foundGene=False
-                            breakCounter=0
+                    if breakCounter==neighbourhoodSize:
+                        break
+            if foundGene:
+                lines=AllLines[ max(0,len(AllLines)-neighbourhoodSize*2) : len(AllLines) ]
+                #break #the rest of the file still needs to be parsed because it may have
+                #multiple cases of specific gene
+                foundGene=False
+                breakCounter=0
 
         #add file data to dictionary
         if foundGene or len(lines)>0:
@@ -103,8 +104,8 @@ for gff in files:
                         selectedLines[gff.replace(".gff","")].insert(0, line)
                     else:
                         selectedLines[gff.replace(".gff","")].append(line)
-            debugCounter=debugCounter+1
  
+
 df = pd.DataFrame(index=[list(selectedLines.keys())], columns=[("gene"+str(f)) for f in range(-neighbourhoodSize,neighbourhoodSize+1)])
 if df.shape[0]==0:
     print("Not found any gff lines with target sequence")
@@ -129,9 +130,7 @@ df.to_csv(wd+"/output.tsv", sep="\t")
 #create gggenes input matrix
 #the matrix shape is rows are individual genes
 #columns are start, end, sample, geneID
-#start of KPC is the coordinate 0
-gggenesInput=open(wd+"/gggenesInput.tsv","w")
-gggenesInput.write("Sample\tgeneID\tStart\tEnd\n")
+
 
 #not strictly necessary because the logic will assign them, but lint odesn't like unbound variables
 flip=True
@@ -139,45 +138,46 @@ pointZero=-1
 #not strictly necessary because the logic will assign them, but lint odesn't like unbound variables
 targetGenChr=-1
 
-for name in selectedLines.keys():
-    #name=file name, value=gff lines
-    #find position of the target gene in the list of gff lines
-    maxPosition=0
-    for i in range(0,len(selectedLines[name])):
-        values=selectedLines[name][i].split("\t")
-        maxPosition=max(maxPosition, int(values[3]),int(values[4]))
-        if targetGeneID in selectedLines[name][i]:
-            direction=values[6]
-            if direction=="+":
-                pointZero=int(values[3])
-                flip=False
-            else:
-                pointZero=int(values[4])
-                flip=True
-            break
-    if flip:
-        pointZero=maxPosition-pointZero
-    for line in selectedLines[name]:
-        values=line.split("\t")
+with open(wd+"/gggenesInput.tsv","w") as gggenesInput:
+    gggenesInput.write("Sample\tgeneID\tStart\tEnd\n")
+    for name in selectedLines.keys():
+        #name=file name, value=gff lines
+        #find position of the target gene in the list of gff lines
+        maxPosition=0
+        for i in range(0,len(selectedLines[name])):
+            values=selectedLines[name][i].split("\t")
+            maxPosition=max(maxPosition, int(values[3]),int(values[4]))
+            if targetGeneID in selectedLines[name][i]:
+                direction=values[6]
+                if direction=="+":
+                    pointZero=int(values[3])
+                    flip=False
+                else:
+                    pointZero=int(values[4])
+                    flip=True
+                break
         if flip:
-            #flip the whole sequence and reverse direction of gene
-            values[3]=maxPosition-int(values[3])
-            values[4]=maxPosition-int(values[4])
+            pointZero=maxPosition-pointZero
+        for line in selectedLines[name]:
+            values=line.split("\t")
+            if flip:
+                #flip the whole sequence and reverse direction of gene
+                values[3]=maxPosition-int(values[3])
+                values[4]=maxPosition-int(values[4])
 
-            if values[6]=="+":
-                #pass
-                gggenesInput.write(name+"\t"+getGeneLabel(line)+"\t"+str(pointZero-int(values[3]))+"\t"+str(pointZero-int(values[4]))+"\n")
+                if values[6]=="+":
+                    #pass
+                    gggenesInput.write(name+"\t"+getGeneLabel(line)+"\t"+str(pointZero-int(values[3]))+"\t"+str(pointZero-int(values[4]))+"\n")
+                else:
+                    #pass
+                    gggenesInput.write(name+"\t"+getGeneLabel(line)+"\t"+str(pointZero-int(values[4]))+"\t"+str(pointZero-int(values[3]))+"\n")
             else:
-                #pass
-                gggenesInput.write(name+"\t"+getGeneLabel(line)+"\t"+str(pointZero-int(values[4]))+"\t"+str(pointZero-int(values[3]))+"\n")
-        else:
-            pass
-            #only adjust start and end coordiantes
-            if values[6]=="+":
-                gggenesInput.write(name+"\t"+getGeneLabel(line)+"\t"+str(pointZero-int(values[3]))+"\t"+str(pointZero-int(values[4]))+"\n")
-            else:
-                gggenesInput.write(name+"\t"+getGeneLabel(line)+"\t"+str(pointZero-int(values[4]))+"\t"+str(pointZero-int(values[3]))+"\n")
-gggenesInput.close()
+                pass
+                #only adjust start and end coordiantes
+                if values[6]=="+":
+                    gggenesInput.write(name+"\t"+getGeneLabel(line)+"\t"+str(pointZero-int(values[3]))+"\t"+str(pointZero-int(values[4]))+"\n")
+                else:
+                    gggenesInput.write(name+"\t"+getGeneLabel(line)+"\t"+str(pointZero-int(values[4]))+"\t"+str(pointZero-int(values[3]))+"\n")
 
 subprocess.call (f'Rscript {pathlib.Path(__file__).parent.resolve()}/genesDiagram.R {wd} {diagramFileName} {str(minComboFrequency)}', shell=True)
 
