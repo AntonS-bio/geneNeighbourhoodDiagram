@@ -72,8 +72,10 @@ for gff in files:
         AllLines=[]
         with open(gffDir+gff) as file:
             for line in file:
+                if line.strip()=="##FASTA":#accmodates prokka's default of adding fasta at the end of gff
+                    break                
                 if line[0]!="#": #skip the header
-                    if line.split("\t")[2].strip()!="CDS":
+                    if len(line.split("\t"))<2 or line.split("\t")[2].strip()!="CDS":
                         continue
                     AllLines.append(line.strip())
                     if targetGeneID in line:

@@ -60,11 +60,13 @@ for (i in seq(1,length(uniqueGenes$geneID))){
 
 
 p=ggplot(figureData, aes(xmin = Start, xmax = End, y = Sample, fill=geneID, label = as.roman(ExtraLabel))) +
-  geom_gene_arrow() + theme(legend.position="bottom", legend.text=element_text(size=8))+
+  geom_gene_arrow() + theme(legend.position="bottom", legend.text=element_text(size=8), panel.background = element_rect(fill = 'white', colour = 'white'))+
   geom_gene_label()+
   labs(y="Genes profile", x = "bps")
 
 
 ggsave(paste0(wd,'/',diagramFile),plot=p, width=40, units=c("cm"), limitsize=FALSE)
+#ggsave(paste0(wd,'/','GeneNeighbourhoodDiagram.pdf'),plot=p, width=40, units=c("cm"), limitsize=FALSE)
+
 
 print("Done with R")
